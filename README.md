@@ -1,6 +1,4 @@
-# rec-center-monitor
-
-Rec Center Availability Monitor
+# Burnaby Rec availability monitor
 
 1. install npm
 2. in terminal, navigate to repo and npm install
