@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏀 Rec Center Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-indicator.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-start {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #218838;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #c82333;
+        }
+
+        .btn-start:disabled,
+        .btn-stop:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .result-item {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item.available {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .result-item.unavailable {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .result-status {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .result-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .result-details {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .connection-dot.disconnected {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🏀 Rec Center Availability Checker</h1>
+            <p class="subtitle">Monitor rec center websites for availability in real-time</p>
+            
+            <div id="statusIndicator" class="status-indicator inactive">
+                <span class="pulse"></span>
+                <span>Inactive</span>
+            </div>
+
+            <div class="form-group">
+                <label for="urlInput">Website URL</label>
+                <input 
+                    type="text" 
+                    id="urlInput" 
+                    placeholder="https://anc.ca.apm.activecommunities.com/burnaby/activity/search/detail/70284..."
+                    value="https://anc.ca.apm.activecommunities.com/burnaby/activity/search/detail/70284?onlineSiteId=0&from_original_cui=true"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="intervalInput">Check Interval (seconds)</label>
+                <input 
+                    type="number" 
+                    id="intervalInput" 
+                    min="10" 
+                    max="300" 
+                    value="30"
+                >
+            </div>
+
+            <div class="button-group">
+                <button id="startBtn" class="btn-start">▶️ Start Polling</button>
+                <button id="stopBtn" class="btn-stop" disabled>⏹️ Stop Polling</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="checkCount">0</div>
+                    <div class="stat-label">Checks Performed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="nextCheck">--</div>
+                    <div class="stat-label">Next Check In</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">Recent Checks</h2>
+            <div id="results" class="results">
+                <p style="color: #999; text-align: center;">No checks yet. Start polling to begin monitoring.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status">
+        <span class="connection-dot" id="connectionDot"></span>
+        <span id="connectionText">Connected</span>
+    </div>
+
+    <script>
+        let ws;
+        let isPolling = false;
+        let nextCheckTimer;
+        let nextCheckTime;
+
+        const statusIndicator = document.getElementById('statusIndicator');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const urlInput = document.getElementById('urlInput');
+        const intervalInput = document.getElementById('intervalInput');
+        const results = document.getElementById('results');
+        const checkCount = document.getElementById('checkCount');
+        const nextCheck = document.getElementById('nextCheck');
+        const connectionDot = document.getElementById('connectionDot');
+        const connectionText = document.getElementById('connectionText');
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                connectionDot.classList.remove('disconnected');
+                connectionText.textContent = 'Connected';
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                connectionDot.classList.add('disconnected');
+                connectionText.textContent = 'Disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'status') {
+                    updateStatus(data);
+                } else if (data.type === 'result') {
+                    addResult(data);
+                }
+            };
+        }
+
+        function updateStatus(data) {
+            isPolling = data.isPolling;
+            
+            if (isPolling) {
+                statusIndicator.className = 'status-indicator active';
+                statusIndicator.innerHTML = '<span class="pulse"></span><span>Polling Active</span>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // Start countdown
+                nextCheckTime = Date.now() + (data.interval * 1000);
+                updateCountdown(data.interval);
+            } else {
+                statusIndicator.className = 'status-indicator inactive';
+                statusIndicator.innerHTML = '<span class="pulse"></span><span>Inactive</span>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                nextCheck.textContent = '--';
+                if (nextCheckTimer) clearInterval(nextCheckTimer);
+            }
+
+            if (data.checkCount !== undefined) {
+                checkCount.textContent = data.checkCount;
+            }
+        }
+
+        function updateCountdown(interval) {
+            if (nextCheckTimer) clearInterval(nextCheckTimer);
+            
+            nextCheckTimer = setInterval(() => {
+                if (!isPolling) {
+                    clearInterval(nextCheckTimer);
+                    return;
+                }
+                
+                const remaining = Math.max(0, Math.ceil((nextCheckTime - Date.now()) / 1000));
+                nextCheck.textContent = `${remaining}s`;
+                
+                if (remaining === 0) {
+                    nextCheckTime = Date.now() + (interval * 1000);
+                }
+            }, 100);
+        }
+
+        function addResult(data) {
+            if (results.querySelector('p')) {
+                results.innerHTML = '';
+            }
+
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result-item ${data.available ? 'available' : 'unavailable'}`;
+            
+            const time = new Date(data.timestamp).toLocaleTimeString();
+            const status = data.available ? '✅ AVAILABLE' : '❌ Not Available';
+            
+            let title = '';
+            let details = '';
+            
+            if (data.activityTitle) {
+                title = `<div style="font-weight: 600; color: #667eea; margin-bottom: 4px;">${data.activityTitle}</div>`;
+            }
+            
+            if (data.openings !== null) {
+                details += `${data.openings} openings remaining`;
+            }
+            if (data.full) {
+                details += details ? ' • ' : '';
+                details += 'Full';
+            }
+            if (data.error) {
+                details = `Error: ${data.error}`;
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="result-header">
+                    <div class="result-status">${status}</div>
+                    <div class="result-time">${time}</div>
+                </div>
+                ${title}
+                <div class="result-details">${details || 'No additional details'}</div>
+            `;
+            
+            results.insertBefore(resultDiv, results.firstChild);
+            
+            // Keep only last 10 results
+            while (results.children.length > 10) {
+                results.removeChild(results.lastChild);
+            }
+
+            // Update check count
+            if (data.checkCount !== undefined) {
+                checkCount.textContent = data.checkCount;
+            }
+        }
+
+        startBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            const interval = parseInt(intervalInput.value);
+            
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+            
+            if (interval < 10 || interval > 300) {
+                alert('Interval must be between 10 and 300 seconds');
+                return;
+            }
+            
+            const response = await fetch('/api/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, interval })
+            });
+            
+            const data = await response.json();
+            console.log('Started polling:', data);
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            const response = await fetch('/api/stop', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            console.log('Stopped polling:', data);
+        });
+
+        // Connect WebSocket on load
+        connectWebSocket();
+
+        // Load initial status
+        fetch('/api/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.url) urlInput.value = data.url;
+                if (data.interval) intervalInput.value = data.interval;
+                if (data.checkCount) checkCount.textContent = data.checkCount;
+                if (data.lastCheck) addResult(data.lastCheck);
+                updateStatus(data);
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "rec-center-checker",
+  "version": "1.0.0",
+  "description": "Monitor rec center availability with web UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node rec_center_checker.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  }
+}
