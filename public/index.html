@@ -249,6 +249,133 @@
         .connection-dot.disconnected {
             background: #dc3545;
         }
+
+        .help-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .help-btn:hover {
+            background: #5568d3;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #667eea;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .modal-steps {
+            list-style: none;
+            padding: 0;
+        }
+
+        .modal-steps li {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-steps li:last-child {
+            border-bottom: none;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .step-text {
+            flex: 1;
+            padding-top: 4px;
+        }
+
+        .step-text code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -268,7 +395,10 @@
             </div>
 
             <div class="form-group">
-                <label for="telegramToken">📱 Telegram Bot Token (optional)</label>
+                <label for="telegramToken">
+                    📱 Telegram Bot Token (optional)
+                    <button class="help-btn" id="helpBtn" type="button">?</button>
+                </label>
                 <input
                     type="text"
                     id="telegramToken"
@@ -334,6 +464,42 @@
     <div class="connection-status">
         <span class="connection-dot" id="connectionDot"></span>
         <span id="connectionText">Connected</span>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📱 Telegram Setup Guide</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <ul class="modal-steps">
+                <li>
+                    <div class="step-number">1</div>
+                    <div class="step-text">Open a new chat with <strong>@BotFather</strong> on Telegram</div>
+                </li>
+                <li>
+                    <div class="step-number">2</div>
+                    <div class="step-text">Create a bot with <code>/newbot</code> and get its token with the <code>/token</code> command</div>
+                </li>
+                <li>
+                    <div class="step-number">3</div>
+                    <div class="step-text">Paste token access key into this app and click <strong>"Start Telegram Bot"</strong></div>
+                </li>
+                <li>
+                    <div class="step-number">4</div>
+                    <div class="step-text">Text <code>/start</code> to your new bot on Telegram (AFTER starting the bot on this app). You will get a connection notification.</div>
+                </li>
+                <li>
+                    <div class="step-number">5</div>
+                    <div class="step-text">✅ Bot connected! You'll now receive notifications when spots become available.</div>
+                </li>
+                <li>
+                    <div class="step-number">6</div>
+                    <div class="step-text">When you are ready to stop polling, make sure to stop the telegram bot and wait for it to fully stop before quitting the app.</div>
+                </li>
+            </ul>
+        </div>
     </div>
 
     <script>
@@ -494,6 +660,34 @@
                 telegramStatus.style.color = '#dc3545';
             } finally {
                 stopTelegramBtn.textContent = '⏹️ Stop Telegram Bot';
+            }
+        });
+
+        // Help Modal
+        const helpModal = document.getElementById('helpModal');
+        const helpBtn = document.getElementById('helpBtn');
+        const closeModal = document.getElementById('closeModal');
+
+        helpBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            helpModal.style.display = 'block';
+        });
+
+        closeModal.addEventListener('click', () => {
+            helpModal.style.display = 'none';
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.style.display = 'none';
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && helpModal.style.display === 'block') {
+                helpModal.style.display = 'none';
             }
         });
 
