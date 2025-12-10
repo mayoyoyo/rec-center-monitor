@@ -27,13 +27,38 @@ let telegramChatId = null;
 let telegramBotToken = null;
 
 // Initialize Telegram bot if token is provided
-function initTelegramBot(token) {
+async function initTelegramBot(token) {
   try {
-    if (telegramBot) {
-      telegramBot.stopPolling();
+    // If bot already exists with same token, don't reinitialize
+    if (telegramBot && telegramBotToken === token) {
+      console.log("Telegram bot already initialized with this token");
+      return true;
     }
+
+    // Stop existing bot if any
+    if (telegramBot) {
+      console.log("Stopping existing Telegram bot...");
+      await telegramBot.stopPolling();
+      telegramBot = null;
+    }
+
+    // Create new bot instance
     telegramBot = new TelegramBot(token, { polling: true });
     telegramBotToken = token;
+
+    // Handle polling errors
+    telegramBot.on("polling_error", (error) => {
+      console.error("Telegram polling error:", error.code, error.message);
+      // Don't log full stack trace for common errors
+      if (error.code === "ETELEGRAM" && error.message.includes("409")) {
+        console.log("Multiple bot instances detected. Stopping this one...");
+        if (telegramBot) {
+          telegramBot.stopPolling();
+          telegramBot = null;
+          telegramBotToken = null;
+        }
+      }
+    });
 
     // Handle /start command to get chat ID
     telegramBot.onText(/\/start/, (msg) => {
@@ -51,10 +76,12 @@ function initTelegramBot(token) {
       });
     });
 
-    console.log("Telegram bot initialized");
+    console.log("Telegram bot initialized successfully");
     return true;
   } catch (error) {
     console.error("Error initializing Telegram bot:", error.message);
+    telegramBot = null;
+    telegramBotToken = null;
     return false;
   }
 }
@@ -297,24 +324,75 @@ app.post("/api/config", (req, res) => {
   });
 });
 
-app.post("/api/telegram/setup", (req, res) => {
+app.post("/api/telegram/start", async (req, res) => {
   const { token } = req.body;
 
   if (!token) {
     return res.status(400).json({ success: false, error: "Token required" });
   }
 
-  const success = initTelegramBot(token);
+  const success = await initTelegramBot(token);
+
+  broadcast({
+    type: "telegram_status",
+    active: success,
+    configured: !!telegramBotToken,
+    connected: !!telegramChatId,
+  });
+
   res.json({
     success,
     message: success
-      ? "Telegram bot initialized. Send /start to your bot to connect."
-      : "Failed to initialize bot",
+      ? "Telegram bot started. Send /start to your bot to connect."
+      : "Failed to start bot. Check if another instance is running.",
   });
+});
+
+app.post("/api/telegram/stop", async (req, res) => {
+  if (telegramBot) {
+    try {
+      console.log("Stopping Telegram bot...");
+      await telegramBot.stopPolling();
+      telegramBot = null;
+      telegramBotToken = null;
+      telegramChatId = null;
+      console.log("Telegram bot stopped");
+
+      broadcast({
+        type: "telegram_status",
+        active: false,
+        configured: false,
+        connected: false,
+      });
+
+      res.json({ success: true, message: "Telegram bot stopped" });
+    } catch (error) {
+      console.log("Telegram bot stop error:", error.message);
+      // Force cleanup
+      telegramBot = null;
+      telegramBotToken = null;
+      telegramChatId = null;
+
+      broadcast({
+        type: "telegram_status",
+        active: false,
+        configured: false,
+        connected: false,
+      });
+
+      res.json({
+        success: true,
+        message: "Telegram bot stopped (with errors)",
+      });
+    }
+  } else {
+    res.json({ success: true, message: "Telegram bot was not running" });
+  }
 });
 
 app.get("/api/telegram/status", (req, res) => {
   res.json({
+    active: !!telegramBot,
     configured: !!telegramBotToken,
     connected: !!telegramChatId,
     chatId: telegramChatId,

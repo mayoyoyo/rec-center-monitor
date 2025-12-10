@@ -259,19 +259,29 @@
             
             <div id="statusIndicator" class="status-indicator inactive">
                 <span class="pulse"></span>
-                <span>Inactive</span>
+                <span>Polling Inactive</span>
+            </div>
+
+            <div id="telegramIndicator" class="status-indicator inactive" style="margin-top: 10px;">
+                <span class="pulse"></span>
+                <span>Telegram Inactive</span>
             </div>
 
             <div class="form-group">
-                <label for="telegramToken">📱 Telegram Bot Token (optional - for phone notifications)</label>
+                <label for="telegramToken">📱 Telegram Bot Token (optional)</label>
                 <input
                     type="text"
                     id="telegramToken"
                     placeholder="Enter your Telegram bot token"
                 >
-                <button id="setupTelegramBtn" style="margin-top: 10px; width: 100%; background: #0088cc; color: white;">
-                    Setup Telegram Notifications
-                </button>
+                <div class="button-group" style="margin-top: 10px;">
+                    <button id="startTelegramBtn" class="btn-start" style="background: #0088cc;">
+                        ▶️ Start Telegram Bot
+                    </button>
+                    <button id="stopTelegramBtn" class="btn-stop" style="background: #6c757d;" disabled>
+                        ⏹️ Stop Telegram Bot
+                    </button>
+                </div>
                 <div id="telegramStatus" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
             </div>
 
@@ -333,6 +343,7 @@
         let nextCheckTime;
 
         const statusIndicator = document.getElementById('statusIndicator');
+        const telegramIndicator = document.getElementById('telegramIndicator');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const urlInput = document.getElementById('urlInput');
@@ -343,7 +354,8 @@
         const connectionDot = document.getElementById('connectionDot');
         const connectionText = document.getElementById('connectionText');
         const telegramToken = document.getElementById('telegramToken');
-        const setupTelegramBtn = document.getElementById('setupTelegramBtn');
+        const startTelegramBtn = document.getElementById('startTelegramBtn');
+        const stopTelegramBtn = document.getElementById('stopTelegramBtn');
         const telegramStatus = document.getElementById('telegramStatus');
 
         function connectWebSocket() {
@@ -370,11 +382,37 @@
                     updateStatus(data);
                 } else if (data.type === 'result') {
                     addResult(data);
+                } else if (data.type === 'telegram_status') {
+                    updateTelegramStatus(data);
                 } else if (data.type === 'telegram_connected') {
-                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> You will receive notifications on Telegram.';
+                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> Chat ID: ' + data.chatId;
                     telegramStatus.style.color = '#28a745';
                 }
             };
+        }
+
+        // Update Telegram status indicator
+        function updateTelegramStatus(data) {
+            if (data.active) {
+                telegramIndicator.className = 'status-indicator active';
+                telegramIndicator.innerHTML = '<span class="pulse"></span><span>Telegram Active</span>';
+                startTelegramBtn.disabled = true;
+                stopTelegramBtn.disabled = false;
+                
+                if (data.connected) {
+                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> Notifications enabled.';
+                    telegramStatus.style.color = '#28a745';
+                } else if (data.configured) {
+                    telegramStatus.innerHTML = '⚠️ Bot running. Send <code>/start</code> to your bot to connect.';
+                    telegramStatus.style.color = '#ff9800';
+                }
+            } else {
+                telegramIndicator.className = 'status-indicator inactive';
+                telegramIndicator.innerHTML = '<span class="pulse"></span><span>Telegram Inactive</span>';
+                startTelegramBtn.disabled = false;
+                stopTelegramBtn.disabled = true;
+                telegramStatus.innerHTML = '';
+            }
         }
 
         // Check Telegram status on load
@@ -382,21 +420,14 @@
             try {
                 const response = await fetch('/api/telegram/status');
                 const data = await response.json();
-                
-                if (data.connected) {
-                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> Notifications enabled.';
-                    telegramStatus.style.color = '#28a745';
-                } else if (data.configured) {
-                    telegramStatus.innerHTML = '⚠️ Bot configured. Send <code>/start</code> to your bot to connect.';
-                    telegramStatus.style.color = '#ff9800';
-                }
+                updateTelegramStatus(data);
             } catch (error) {
                 console.error('Error checking Telegram status:', error);
             }
         }
 
-        // Setup Telegram
-        setupTelegramBtn.addEventListener('click', async () => {
+        // Start Telegram Bot
+        startTelegramBtn.addEventListener('click', async () => {
             const token = telegramToken.value.trim();
             
             if (!token) {
@@ -404,31 +435,65 @@
                 return;
             }
             
-            setupTelegramBtn.disabled = true;
-            setupTelegramBtn.textContent = 'Setting up...';
+            startTelegramBtn.disabled = true;
+            startTelegramBtn.textContent = 'Starting...';
             
             try {
-                const response = await fetch('/api/telegram/setup', {
+                const response = await fetch('/api/telegram/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned invalid response. Check console for details.');
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
-                    telegramStatus.innerHTML = '✅ Bot initialized! Now open Telegram and send <code>/start</code> to your bot.';
+                    telegramStatus.innerHTML = '✅ Bot started! Send <code>/start</code> to your bot on Telegram.';
                     telegramStatus.style.color = '#ff9800';
                 } else {
-                    telegramStatus.innerHTML = '❌ Failed to setup bot. Check your token.';
+                    telegramStatus.innerHTML = '❌ ' + (data.message || 'Failed to start bot');
                     telegramStatus.style.color = '#dc3545';
+                    startTelegramBtn.disabled = false;
                 }
+            } catch (error) {
+                console.error('Telegram start error:', error);
+                telegramStatus.innerHTML = '❌ Error: ' + error.message;
+                telegramStatus.style.color = '#dc3545';
+                startTelegramBtn.disabled = false;
+            } finally {
+                startTelegramBtn.textContent = '▶️ Start Telegram Bot';
+            }
+        });
+
+        // Stop Telegram Bot
+        stopTelegramBtn.addEventListener('click', async () => {
+            stopTelegramBtn.disabled = true;
+            stopTelegramBtn.textContent = 'Stopping...';
+            
+            try {
+                const response = await fetch('/api/telegram/stop', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                telegramStatus.innerHTML = '⏹️ ' + data.message;
+                telegramStatus.style.color = '#666';
             } catch (error) {
                 telegramStatus.innerHTML = '❌ Error: ' + error.message;
                 telegramStatus.style.color = '#dc3545';
             } finally {
-                setupTelegramBtn.disabled = false;
-                setupTelegramBtn.textContent = 'Setup Telegram Notifications';
+                stopTelegramBtn.textContent = '⏹️ Stop Telegram Bot';
             }
         });
 
