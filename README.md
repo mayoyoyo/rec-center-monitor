@@ -1,6 +1,4 @@
-# rec-center-monitor
-
-Rec Center Availability Monitor
+# Rec Center Availability Monitor
 
 1. install npm
 2. in terminal, navigate to repo and npm install
