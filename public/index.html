@@ -263,6 +263,19 @@
             </div>
 
             <div class="form-group">
+                <label for="telegramToken">📱 Telegram Bot Token (optional - for phone notifications)</label>
+                <input
+                    type="text"
+                    id="telegramToken"
+                    placeholder="Enter your Telegram bot token"
+                >
+                <button id="setupTelegramBtn" style="margin-top: 10px; width: 100%; background: #0088cc; color: white;">
+                    Setup Telegram Notifications
+                </button>
+                <div id="telegramStatus" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+            </div>
+
+            <div class="form-group">
                 <label for="urlInput">Website URL</label>
                 <input 
                     type="text" 
@@ -329,6 +342,9 @@
         const nextCheck = document.getElementById('nextCheck');
         const connectionDot = document.getElementById('connectionDot');
         const connectionText = document.getElementById('connectionText');
+        const telegramToken = document.getElementById('telegramToken');
+        const setupTelegramBtn = document.getElementById('setupTelegramBtn');
+        const telegramStatus = document.getElementById('telegramStatus');
 
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -354,9 +370,67 @@
                     updateStatus(data);
                 } else if (data.type === 'result') {
                     addResult(data);
+                } else if (data.type === 'telegram_connected') {
+                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> You will receive notifications on Telegram.';
+                    telegramStatus.style.color = '#28a745';
                 }
             };
         }
+
+        // Check Telegram status on load
+        async function checkTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram/status');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    telegramStatus.innerHTML = '✅ <strong>Connected!</strong> Notifications enabled.';
+                    telegramStatus.style.color = '#28a745';
+                } else if (data.configured) {
+                    telegramStatus.innerHTML = '⚠️ Bot configured. Send <code>/start</code> to your bot to connect.';
+                    telegramStatus.style.color = '#ff9800';
+                }
+            } catch (error) {
+                console.error('Error checking Telegram status:', error);
+            }
+        }
+
+        // Setup Telegram
+        setupTelegramBtn.addEventListener('click', async () => {
+            const token = telegramToken.value.trim();
+            
+            if (!token) {
+                alert('Please enter your Telegram bot token');
+                return;
+            }
+            
+            setupTelegramBtn.disabled = true;
+            setupTelegramBtn.textContent = 'Setting up...';
+            
+            try {
+                const response = await fetch('/api/telegram/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    telegramStatus.innerHTML = '✅ Bot initialized! Now open Telegram and send <code>/start</code> to your bot.';
+                    telegramStatus.style.color = '#ff9800';
+                } else {
+                    telegramStatus.innerHTML = '❌ Failed to setup bot. Check your token.';
+                    telegramStatus.style.color = '#dc3545';
+                }
+            } catch (error) {
+                telegramStatus.innerHTML = '❌ Error: ' + error.message;
+                telegramStatus.style.color = '#dc3545';
+            } finally {
+                setupTelegramBtn.disabled = false;
+                setupTelegramBtn.textContent = 'Setup Telegram Notifications';
+            }
+        });
 
         function updateStatus(data) {
             isPolling = data.isPolling;
@@ -488,6 +562,9 @@
 
         // Connect WebSocket on load
         connectWebSocket();
+
+        // Check Telegram status
+        checkTelegramStatus();
 
         // Load initial status
         fetch('/api/status')

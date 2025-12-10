@@ -3,6 +3,7 @@ const { chromium } = require("playwright");
 const { exec } = require("child_process");
 const WebSocket = require("ws");
 const path = require("path");
+const TelegramBot = require("node-telegram-bot-api");
 
 const app = express();
 const PORT = 3001;
@@ -19,6 +20,62 @@ let currentUrl =
 let pollIntervalSeconds = 30;
 let lastCheckResult = null;
 let checkCount = 0;
+
+// Telegram configuration
+let telegramBot = null;
+let telegramChatId = null;
+let telegramBotToken = null;
+
+// Initialize Telegram bot if token is provided
+function initTelegramBot(token) {
+  try {
+    if (telegramBot) {
+      telegramBot.stopPolling();
+    }
+    telegramBot = new TelegramBot(token, { polling: true });
+    telegramBotToken = token;
+
+    // Handle /start command to get chat ID
+    telegramBot.onText(/\/start/, (msg) => {
+      telegramChatId = msg.chat.id;
+      telegramBot.sendMessage(
+        telegramChatId,
+        "✅ Rec Center Monitor connected! You'll receive notifications here when spots become available."
+      );
+      console.log(`Telegram chat ID registered: ${telegramChatId}`);
+
+      // Broadcast the chat ID to web clients
+      broadcast({
+        type: "telegram_connected",
+        chatId: telegramChatId,
+      });
+    });
+
+    console.log("Telegram bot initialized");
+    return true;
+  } catch (error) {
+    console.error("Error initializing Telegram bot:", error.message);
+    return false;
+  }
+}
+
+// Send Telegram notification
+async function sendTelegramNotification(message) {
+  if (!telegramBot || !telegramChatId) {
+    console.log("Telegram not configured, skipping notification");
+    return;
+  }
+
+  try {
+    await telegramBot.sendMessage(telegramChatId, message, {
+      parse_mode: "HTML",
+      disable_web_page_preview: false,
+    });
+    console.log("Telegram notification sent");
+  } catch (error) {
+    console.error("Error sending Telegram notification:", error.message);
+  }
+}
 
 // WebSocket server for real-time updates
 const wss = new WebSocket.Server({ noServer: true });
@@ -121,6 +178,15 @@ async function checkAvailability(url) {
         : "Spots available!";
 
       sendNotification("🏀 Rec Center Alert", message);
+
+      // Send Telegram notification
+      const activityName = pageData.activityTitle || "Activity";
+      const openingsText = pageData.openingsCount
+        ? `📊 ${pageData.openingsCount} spots remaining\n\n`
+        : "";
+      const telegramMessage = `🏀 <b>Rec Center Alert!</b>\n\n${activityName} is now available!\n\n${openingsText}🔗 <a href="${url}">Book Now</a>`;
+      await sendTelegramNotification(telegramMessage);
+
       exec(`open "${url}"`);
     }
 
@@ -228,6 +294,30 @@ app.post("/api/config", (req, res) => {
     success: true,
     url: currentUrl,
     interval: pollIntervalSeconds,
+  });
+});
+
+app.post("/api/telegram/setup", (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ success: false, error: "Token required" });
+  }
+
+  const success = initTelegramBot(token);
+  res.json({
+    success,
+    message: success
+      ? "Telegram bot initialized. Send /start to your bot to connect."
+      : "Failed to initialize bot",
+  });
+});
+
+app.get("/api/telegram/status", (req, res) => {
+  res.json({
+    configured: !!telegramBotToken,
+    connected: !!telegramChatId,
+    chatId: telegramChatId,
   });
 });
 
